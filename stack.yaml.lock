@@ -15,6 +15,13 @@ packages:
   original:
     git: https://github.com/Innf107/mcrcon
     commit: 4178833e4610ed04dbb89f5d0e693ffb6f231afd
+- completed:
+    hackage: errata-0.3.0.0@sha256:3537e4b29a22c0fd9866dce5d7fac2ad16e9ff636b6ecbe819ab21a56366cc8d,2086
+    pantry-tree:
+      size: 683
+      sha256: 137a43b8531539661c590dd6fdf322bd00a8303d0df031e313c4aed271dea415
+  original:
+    hackage: errata-0.3.0.0@sha256:3537e4b29a22c0fd9866dce5d7fac2ad16e9ff636b6ecbe819ab21a56366cc8d,2086
 snapshots:
 - completed:
     size: 571803

@@ -37,6 +37,7 @@ packages:
 extra-deps:
   - git: https://github.com/Innf107/mcrcon
     commit: 4178833e4610ed04dbb89f5d0e693ffb6f231afd
+  - errata-0.3.0.0@sha256:3537e4b29a22c0fd9866dce5d7fac2ad16e9ff636b6ecbe819ab21a56366cc8d,2086
 # - git: https://github.com/commercialhaskell/stack.git
 #   commit: e7b331f14bcffb8367cd58fbfc8b40ec7642100a
 #

@@ -62,7 +62,7 @@ data CompilationError = LexError LexicalError
                       | TypeError TypeError
                       | ModuleError ModuleError
                       | Panic Text
-                      deriving (Show, Eq)
+                      deriving (Show, Eq, Generic)
 
 
 type ControllerC r = Members '[Reader CompileOpts, Error CompilationError, FileSystem FilePath Text, Output Log] r

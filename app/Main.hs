@@ -4,6 +4,7 @@ import Language.Cobble.Prelude hiding (argument)
 import Language.Cobble
 import Language.Cobble.Types
 import Language.Cobble.Packager
+import Language.Cobble.Errors
 
 import Options.Applicative
 import Language.Cobble.Util.Polysemy.Time
@@ -38,7 +39,7 @@ runCompile CompileCmdOpts{compFiles, debug, packageName, description, logLevel, 
     (logs, edatapackBS) <- runControllerC opts (timeToIO $ compileToDataPack compFiles)
     traverse_ (printLog logLevel) logs
     case edatapackBS of
-        Left e -> failWithCompError e
+        Left e -> prettyPrintError e
         Right datapackBS -> writeFileLBS (toString packageName <> ".zip") datapackBS
 
 printLog :: LogLevel -> Log -> IO ()
@@ -53,9 +54,6 @@ printLog maxLevel (Log lvl o) = when (lvl <= maxLevel)
             LogDebugVerbose -> "\ESC[38;2;0;128;0m\STX[DEBUG VERBOSE] "
             LogDebugVeryVerbose -> "\ESC[38;2;0;100;0m\STX[DEBUG VERY VERBOSE] "
 
--- TODO
-failWithCompError :: CompilationError -> IO a
-failWithCompError e = fail $ "CompilationError: " <> show e
 
 data CobbleAction = Compile CompileCmdOpts deriving (Show, Eq)
 

@@ -138,6 +138,8 @@ instance Snoc (D.DList a) (D.DList b) a b where
 instance ToText (D.DList Char) where
     toText = toText . toList
 
+
+
 instance ToText Char where
     toText = T.singleton
     

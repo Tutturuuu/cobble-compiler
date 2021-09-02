@@ -35,6 +35,7 @@ library
       Language.Cobble.Codegen.TopLevelCPSToMCAsm
       Language.Cobble.CPS.Basic.Types
       Language.Cobble.CPS.TopLevel.Types
+      Language.Cobble.Errors
       Language.Cobble.LC.PrettyPrint
       Language.Cobble.LC.Types
       Language.Cobble.MCAsm.Types
@@ -135,6 +136,7 @@ library
     , containers
     , directory
     , dlist
+    , errata
     , filepath
     , lens
     , mcrcon
@@ -218,6 +220,7 @@ executable cobble
     , containers
     , directory
     , dlist
+    , errata
     , filepath
     , lens
     , mcrcon
@@ -321,6 +324,7 @@ test-suite cobble-test
     , containers
     , directory
     , dlist
+    , errata
     , filepath
     , hspec
     , lens

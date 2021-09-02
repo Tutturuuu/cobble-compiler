@@ -42,6 +42,7 @@ dependencies:
 - mcrcon
 - these
 - recursion-schemes
+- errata
 
 library:
   source-dirs: src

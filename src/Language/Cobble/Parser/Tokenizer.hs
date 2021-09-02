@@ -53,11 +53,11 @@ isParen = (`elem`"()[]{}")
 isNumPrefix :: Char -> Bool
 isNumPrefix c = c `elem` "+-"
 
-data LexicalError = LexicalError SourcePos FileName LexicalErrorData deriving (Show, Eq)
+data LexicalError = LexicalError SourcePos FileName LexicalErrorData deriving (Show, Eq, Generic)
 
 data LexicalErrorData = ReachedEOF TokenState
                   | UnexpectedChar Char (TokenState)
-                  deriving (Show, Eq)
+                  deriving (Show, Eq, Generic)
 
 data TokenState = Default
                 | InIdent (DList Char)
@@ -65,7 +65,7 @@ data TokenState = Default
                 | InIntLit (DList Char)
                 | LeadingMinus
                 | InComment
-                deriving (Show, Eq)
+                deriving (Show, Eq, Generic)
 
 sameTag :: TokenState -> TokenState -> Bool
 sameTag Default         Default         = True
