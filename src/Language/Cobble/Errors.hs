@@ -4,7 +4,7 @@ import Language.Cobble.Prelude
 import Language.Cobble.Types
 import Language.Cobble
 
-import Language.Cobble.Parser.Tokenizer (LexicalError(..))
+import Language.Cobble.Parser.Tokenizer (LexicalError(..), LexicalErrorData(..), TokenState(..))
 import Language.Cobble.Prelude.Parser (ParseError)
 import Language.Cobble.ModuleSolver (ModuleError (..))
 import Language.Cobble.SemAnalysis (SemanticError (..))
@@ -24,7 +24,21 @@ prettyPrintError err = readFile (sourcePath err) >>= \source -> putLTextLn $ pre
     Panic e -> prettyPrintPanic e
 
 prettyPrintLexError :: LexicalError -> Errata
-prettyPrintLexError = tempError 
+prettyPrintLexError (LexicalError pos fname errData) = case errData of
+    ReachedEOF ts -> commonError lexInfo ("Unexpected End of File": prettyTS ts) [] 
+    UnexpectedChar c ts -> commonError lexInfo (["Unexpected character ", customNameT (toText c)] <> prettyTS ts) []
+    where
+        lexInfo = LexInfo pos pos fname
+        prettyTS = \case
+            Default -> []
+            InIdent cs -> [" while parsing identifier ", customNameT (toText cs)]
+            InOp cs -> [" while parsing operator ", customNameT (toText cs)]
+            InIntLit cs -> [" while parsing the integer literal ", customNameT (toText cs)]
+            LeadingMinus -> [" after a leading minus (", customNameT "-", ")"]
+            InComment -> [" in a comment"]
+
+
+    
 
 prettyPrintParseError :: ParseError -> Errata
 prettyPrintParseError = tempError
@@ -40,7 +54,11 @@ prettyPrintQualError = \case
     e -> tempError e 
 
 prettyPrintSemError :: SemanticError -> Errata
-prettyPrintSemError = tempError 
+prettyPrintSemError = \case
+    MissingField li fname -> commonError li ["Missing field ", customNameT fname, " in record construction"] ["All fields of a record must be fully specified at construction"]
+    NonExistantOrDuplicateFields li fields -> commonError li ["Fields are duplicated or invalid: ", customNamesT fields] ["You might have misspelled a field name"]
+    DuplicateStructDefFields li fields -> commonError li ["Duplicate fields in a struct definition: ", customNamesT fields] ["The fields of a struct have to be unique"]
+    -- TODO: LexInfo is only the first character of 'struct'
 
 prettyPrintTypeError :: TypeError -> Errata
 prettyPrintTypeError = tempError
@@ -57,7 +75,15 @@ customNameT = Bold . pure . quoted
 customName :: QualifiedName -> Format
 customName = customNameT . originalName
 
-data Format = Text Text | Red [Format] | Bold [Format] | Quoted [Format]
+customNamesT :: [Text] -> Format
+customNamesT ts = FList NoFormat (map customNameT ts)
+
+data Format = Text Text 
+            | Red [Format] 
+            | Bold [Format] 
+            | Quoted [Format] 
+            | FList ([Format] -> Format) [Format] 
+            | NoFormat [Format]
 
 red :: Text -> Format
 red = Red . pure . Text
@@ -74,9 +100,11 @@ renderFormat = foldMap (\x -> renderFormat' x <> "\ESC[0m")
 renderFormat' :: Format -> Text
 renderFormat' = \case
     Text t  -> t
+    NoFormat fs -> foldMap renderFormat' fs
     Red fs  -> "\ESC[31m" <> foldMap renderFormat' fs
     Bold fs -> "\ESC[1m" <> foldMap renderFormat' fs
     Quoted fs -> "'" <> foldMap renderFormat' fs <> "'"
+    FList f fs -> foldMap renderFormat' $ (f ["["]) : intersperse (f [", "]) fs <> [f ["]"]]
 
 instance IsString Format where
     fromString = Text . toText
@@ -99,6 +127,7 @@ class HasSourcePath e where
 
 instance HasSourcePath CompilationError where
     sourcePath (QualificationError e) = sourcePath e
+    sourcePath (SemanticError e) = sourcePath e
     sourcePath e = error $ "sourcePath not complete: " <> show e
 
 instance HasSourcePath QualificationError where
@@ -110,4 +139,8 @@ instance HasSourcePath QualificationError where
     sourcePath (TypeAlreadyDeclaredInScope (LexInfo _ _ fp) _) = toString fp
     sourcePath e = error $ "sourcePath not complete: " <> show e
 
+instance HasSourcePath SemanticError where
+    sourcePath (MissingField (LexInfo _ _ fp) _) = toString fp
+    sourcePath (NonExistantOrDuplicateFields (LexInfo _ _ fp) _) = toString fp
+    sourcePath (DuplicateStructDefFields (LexInfo _ _ fp) _) = toString fp
 
