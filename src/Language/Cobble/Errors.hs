@@ -110,14 +110,31 @@ instance IsString Format where
     fromString = Text . toText
 
 commonError :: LexInfo -> [Format] -> [Format] -> Errata
-commonError (LexInfo from to fp) name desc = errataSimple 
-    (Just $ renderFormat name) (blockSimple 
+commonError (LexInfo from to fp) name desc
+    | line from == line to = errataSimple 
+        title 
+        (blockSimple 
                 fancyRedStyle 
                 (toString fp) 
                 Nothing  
                 (line from, column from, column to, Nothing) 
-                Nothing)  
-            (Just (renderFormat desc))
+                Nothing)   
+        description
+    
+    | otherwise = errataSimple
+        title 
+        ( Block
+            fancyRedStyle 
+            (toString fp, line from, column from)
+            Nothing
+            ([line from..line to] <&> \l -> Pointer l 0 0 False Nothing)
+            Nothing
+        )
+        description
+
+    where
+        title = Just $ renderFormat name 
+        description = Just (renderFormat desc)
 
 tempError :: (Show s) => s -> Errata
 tempError s = Errata (Just (show s)) [] Nothing
