@@ -11,8 +11,8 @@ import qualified Data.Text as T
 import Data.Data
 
 data CPS = Let      QualifiedName CPSExpr CPS
-         | LetRec   QualifiedName QualifiedName QualifiedName CPS CPS
-         | App3 CPSVal CPSVal CPSVal
+         | LetRec   QualifiedName QualifiedName QualifiedName QualifiedName CPS CPS
+         | App4 CPSVal CPSVal CPSVal CPSVal
          | App2 CPSVal CPSVal
          | If CPSVal CPS CPS
          deriving (Eq, Generic, Data)
@@ -27,7 +27,7 @@ instance S.Show CPSExpr where show = toString . prettyPrintCPSExpr
 
 data CPSVal = IntLit Int
             | Var QualifiedName
-            | Lambda QualifiedName QualifiedName CPS
+            | Lambda QualifiedName QualifiedName QualifiedName CPS
             | Admin QualifiedName CPS
             | Halt
             deriving (Eq, Generic, Data)
@@ -36,11 +36,11 @@ instance S.Show CPSVal where show = toString . prettyPrintCPSVal
 
 prettyPrintCPS :: CPS -> Text
 prettyPrintCPS = \case
-    Let name ex body    -> "let "    <> show name <> " = " <> prettyPrintCPSExpr ex <> " in " <> prettyPrintCPS body
-    LetRec f k x ex body-> "letrec " <> show f <> " " <> show k <> " " <> show x <> " = " <> prettyPrintCPS ex <> " in " <> prettyPrintCPS body
-    App2 f x            -> prettyPrintCPSVal f <> " " <> prettyPrintCPSVal x
-    App3 f x y          -> prettyPrintCPSVal f <> " " <> prettyPrintCPSVal x <> " " <> prettyPrintCPSVal y
-    If c th el          -> "if " <> prettyPrintCPSVal c <> " then " <> prettyPrintCPS th <> " else " <> prettyPrintCPS el 
+    Let name ex body        -> "let "    <> show name <> " = " <> prettyPrintCPSExpr ex <> " in " <> prettyPrintCPS body
+    LetRec f k kr x ex body -> "letrec " <> show f <> " " <> show k <> " " <> show kr <> " " <> show x <> " = " <> prettyPrintCPS ex <> " in " <> prettyPrintCPS body
+    App2 f x                -> prettyPrintCPSVal f <> " " <> prettyPrintCPSVal x
+    App4 f x y z            -> prettyPrintCPSVal f <> " " <> prettyPrintCPSVal x <> " " <> prettyPrintCPSVal y <> " " <> prettyPrintCPSVal z
+    If c th el              -> "if " <> prettyPrintCPSVal c <> " then " <> prettyPrintCPS th <> " else " <> prettyPrintCPS el 
 
 prettyPrintCPSExpr :: CPSExpr -> Text
 prettyPrintCPSExpr = \case
@@ -54,7 +54,7 @@ prettyPrintCPSVal = \case
     IntLit i        -> show i
     Var n           -> show n
     Halt            -> "halt"
-    Lambda k x b    -> "(λ" <> show k <> " " <> show x <> ". " <> prettyPrintCPS b <> ")"
+    Lambda k kr x b -> "(λ" <> show k <> " " <> show kr <> " " <> show x <> ". " <> prettyPrintCPS b <> ")"
     Admin x b       -> "(λ_" <> show x <> ". " <> prettyPrintCPS b <> ")"
 
 

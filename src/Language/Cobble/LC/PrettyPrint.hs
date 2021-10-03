@@ -25,6 +25,8 @@ prettyPrintLCExpr = \case
                                 <> " then " <> prettyPrintLCExpr th 
                                 <> " else " <> prettyPrintLCExpr el
     PrimOp p ps             -> "__" <> show p <> "__[" <> T.intercalate ", " (map prettyPrintLCExpr ps) <> "]"
+    Shift k e               -> "shift " <> show k <> prettyPrintLCExprParens e
+    Reset e                 -> "reset " <> prettyPrintLCExprParens e
 
 prettyPrintLCExprParens :: LCExpr -> Text
 prettyPrintLCExprParens = \case

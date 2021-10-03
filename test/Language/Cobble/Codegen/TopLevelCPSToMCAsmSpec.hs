@@ -11,9 +11,12 @@ import Language.Cobble.Codegen.TestShared
 import Test.Hspec
 
 spec :: Spec
+spec = pure ()
+{-
+spec :: Spec
 spec = do
     describe "compile" do
         it ("correctly compiles " <> show exampleTL) do
             pass :: IO () -- TODO
             -- compile exampleTL `shouldBe` exampleASM
-
+-}

@@ -18,15 +18,15 @@ import Data.Set ((\\))
 import Data.Set qualified as S
 
 --               TODO: TLBindingRecF QualifiedName QualifiedName [QualifiedName] TLC
-data TopLevelBinding = TLBindingF QualifiedName QualifiedName [QualifiedName] TLC
+data TopLevelBinding = TLBindingF QualifiedName QualifiedName QualifiedName [QualifiedName] TLC
                      | TLBindingC QualifiedName [QualifiedName] TLC
 
 type LocalBinding = (QualifiedName, TLExp)
 
 compile :: (Members '[Fresh Text QualifiedName] r) => CPS -> Sem r TL
 compile c = runReader mempty $ compileC c <&> \(bindings, cmd) -> bindings & foldr (\t r -> case t of
-    TLBindingF fname k args b -> T.LetF fname k args b r
-    TLBindingC fname args b   -> T.LetC fname args b r
+    TLBindingF fname k kr args b -> T.LetF fname k kr args b r
+    TLBindingC fname args b      -> T.LetC fname args b r
     ) (T.C cmd)
 
 type LetRecEnv = Map QualifiedName (QualifiedName, QualifiedName)
@@ -38,37 +38,39 @@ compileC = \case
         (eTLs, eLocs, eExp) <- compileExpr e
         (cTLs, cC) <- compileC c
         pure (eTLs <> cTLs, withLocals eLocs (T.Let x eExp cC))
-    C.LetRec f k x e c -> do
+    C.LetRec f k kr x e c -> do
         s' <- freshVar "s"
         env' <- freshVar "env"
         tlF <- freshVar (originalName f)
-        (lamTLs, lamLocs, lamExp) <- local (insert f (tlF, s')) $ compileLambdaWithNames (tlF, s', env') k x e
+        (lamTLs, lamLocs, lamExp) <- local (insert f (tlF, s')) $ compileLambdaWithNames (tlF, s', env') k kr x e
         -- LetRec is (obviously) only scoped over its own function body
         (cTLs, cC) <- compileC c
         pure (lamTLs <> cTLs, withLocals lamLocs (T.Let f lamExp cC))
 
-    C.App3 f v1 v2 -> do
+    C.App4 f v1 v2 v3 -> do
         recFuns <- ask
         case f of
             C.Var fv | Just (tlF, fenv) <- lookup fv recFuns -> do
                 -- Recursive calls are treated specially
                 (v1TLs, v1Locs, (v1Bindings, v1')) <- traverseOf _3 asVar =<< compileVal v1
                 (v2TLs, v2Locs, (v2Bindings, v2')) <- traverseOf _3 asVar =<< compileVal v2
+                (v3TLs, v3Locs, (v3Bindings, v3')) <- traverseOf _3 asVar =<< compileVal v3
                 -- In a recursive call, the environment is already known, so there is no closure to unwrap
                 pure 
-                    (   v1TLs <> v2TLs 
-                    ,   withLocals (v1Locs <> v2Locs <> v1Bindings <> v2Bindings)
-                            (T.App tlF [v1', fenv, v2'])
+                    (   v1TLs <> v2TLs <> v3TLs
+                    ,   withLocals (v1Locs <> v2Locs <> v3Locs <> v1Bindings <> v2Bindings <> v3Bindings)
+                            (T.App tlF [v1', v2', fenv, v3'])
                     ) 
             _ -> do 
                 (fTLs,  fLocs,  (fBindings,  f'))  <- traverseOf _3 asVar =<< compileVal f
                 (v1TLs, v1Locs, (v1Bindings, v1')) <- traverseOf _3 asVar =<< compileVal v1 
                 (v2TLs, v2Locs, (v2Bindings, v2')) <- traverseOf _3 asVar =<< compileVal v2
+                (v3TLs, v3Locs, (v3Bindings, v3')) <- traverseOf _3 asVar =<< compileVal v3
                 (unwrapBindings, f'', env') <- unwrapClosure f'
                 pure (
-                        fTLs <> v1TLs <> v2TLs 
-                    ,   withLocals (fLocs <> v1Locs <> v2Locs <> fBindings <> v1Bindings <> v2Bindings <> unwrapBindings) 
-                            (T.App f'' [v1', env', v2'])
+                        fTLs <> v1TLs <> v2TLs <> v3TLs
+                    ,   withLocals (fLocs <> v1Locs <> v2Locs <> v3Locs <> fBindings <> v1Bindings <> v2Bindings <> v3Bindings <> unwrapBindings) 
+                            (T.App f'' [v1', v2', env', v3'])
                     )
     C.App2 f v -> do
         -- Continuations *do* actually need to unwrap their closure... whoops
@@ -129,23 +131,23 @@ compileExpr = \case
 
 compileVal :: (Members '[Fresh Text QualifiedName, Reader LetRecEnv] r) => CPSVal -> Sem r ([TopLevelBinding], [LocalBinding], TLExp)
 compileVal = \case
-    C.IntLit n      -> pure ([], [], T.IntLit n)
-    C.Var v         -> pure ([], [], T.Var v)
-    C.Lambda k x c  -> compileLambda k x c
-    C.Admin v c     -> compileContinuation v c
-    C.Halt          -> freshVar2 "h" "henv" <&> \(h', henv') -> 
-                        ([], [(h', T.Halt), (henv', T.Tuple [])], T.Tuple [h', henv'])
+    C.IntLit n          -> pure ([], [], T.IntLit n)
+    C.Var v             -> pure ([], [], T.Var v)
+    C.Lambda k kr x c   -> compileLambda k kr x c
+    C.Admin v c         -> compileContinuation v c
+    C.Halt              -> freshVar2 "h" "henv" <&> \(h', henv') -> 
+                            ([], [(h', T.Halt), (henv', T.Tuple [])], T.Tuple [h', henv'])
 
 
-compileLambda :: (Members '[Fresh Text QualifiedName, Reader LetRecEnv] r) => QualifiedName -> QualifiedName -> CPS -> Sem r ([TopLevelBinding], [LocalBinding], TLExp)
-compileLambda k x c = freshVar3 "f" "s" "env" >>= \ns -> compileLambdaWithNames ns k x c
+compileLambda :: (Members '[Fresh Text QualifiedName, Reader LetRecEnv] r) => QualifiedName -> QualifiedName -> QualifiedName -> CPS -> Sem r ([TopLevelBinding], [LocalBinding], TLExp)
+compileLambda k kr x c = freshVar3 "f" "s" "env" >>= \ns -> compileLambdaWithNames ns k kr x c
 
-compileLambdaWithNames :: (Members '[Fresh Text QualifiedName, Reader LetRecEnv] r) => (QualifiedName, QualifiedName, QualifiedName) -> QualifiedName -> QualifiedName -> CPS -> Sem r ([TopLevelBinding], [LocalBinding], TLExp)
-compileLambdaWithNames (f', s', env') k x c = do
-    ys <- freeVars c [k, x]
+compileLambdaWithNames :: (Members '[Fresh Text QualifiedName, Reader LetRecEnv] r) => (QualifiedName, QualifiedName, QualifiedName) -> QualifiedName -> QualifiedName -> QualifiedName -> CPS -> Sem r ([TopLevelBinding], [LocalBinding], TLExp)
+compileLambdaWithNames (f', s', env') k kr x c = do
+    ys <- freeVars c [k, kr, x]
     (fs, c') <- compileC c
     pure (
-            TLBindingF f' k [s', x] (ifoldr (\i x r -> T.Let x (T.Select i s') r) c' ys) : fs
+            TLBindingF f' k kr [s', x] (ifoldr (\i x r -> T.Let x (T.Select i s') r) c' ys) : fs
         ,   [(env', T.Tuple ys)]
         ,   T.Tuple [f', env']
         )
@@ -180,11 +182,11 @@ freeVars c ns = do
 
 freeVars' :: CPS -> Set QualifiedName
 freeVars' = \case
-    C.Let v e b         -> freeVarsExpr' e <> (freeVars' b \\ one v)
-    C.LetRec f k x e b  -> (freeVars' e <> freeVars' b) \\ fromList [f, k, x]
-    C.App2 f e          -> freeVarsVal' f <> freeVarsVal' e
-    C.App3 f k e        -> freeVarsVal' f <> freeVarsVal' k <> freeVarsVal' e
-    C.If c th el        -> freeVarsVal' c <> freeVars' th <> freeVars' el 
+    C.Let v e b             -> freeVarsExpr' e <> (freeVars' b \\ one v)
+    C.LetRec f k kr x e b   -> (freeVars' e <> freeVars' b) \\ fromList [f, k, kr, x]
+    C.App2 f e              -> freeVarsVal' f <> freeVarsVal' e
+    C.App4 f k kr e         -> freeVarsVal' f <> freeVarsVal' k <> freeVarsVal' kr <> freeVarsVal' e
+    C.If c th el            -> freeVarsVal' c <> freeVars' th <> freeVars' el 
 
 freeVarsExpr' :: CPSExpr -> Set QualifiedName
 freeVarsExpr' = \case
@@ -198,7 +200,7 @@ freeVarsVal' = \case
     C.IntLit _          -> mempty
     C.Halt              -> mempty
     C.Var v             -> one v
-    C.Lambda k1 k2 b    -> freeVars' b \\ fromList [k1, k2]
+    C.Lambda x k1 k2 b  -> freeVars' b \\ fromList [x, k1, k2]
     C.Admin x c         -> freeVars' c \\ one x
 
 

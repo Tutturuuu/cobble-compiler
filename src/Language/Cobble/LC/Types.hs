@@ -22,6 +22,8 @@ data LCExpr = Var QualifiedName
             | Select Int LCExpr
             | If LCExpr LCExpr LCExpr
             | PrimOp PrimOp [LCExpr]
+            | Shift QualifiedName LCExpr
+            | Reset LCExpr
             deriving (Show, Eq, Generic, Data)
 
 

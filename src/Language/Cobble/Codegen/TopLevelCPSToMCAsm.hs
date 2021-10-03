@@ -20,9 +20,10 @@ compile = compile' []
 
 compile' :: [QualifiedName] -> TL -> [Block]
 compile' fs = \case 
-    LetF f k ps c p -> Block f (
+    LetF f k kr ps c p -> Block f (
             Move (Reg k) (argReg 0)
-        :   imap (\i x -> Move (Reg x) (argReg (i + 1))) ps
+        :   Move (Reg kr) (argReg 1)
+        :   imap (\i x -> Move (Reg x) (argReg (i + 2))) ps
         <>  compileTLC c)
         : compile' (f:fs) p
     LetC f ps c p -> Block f (concat [

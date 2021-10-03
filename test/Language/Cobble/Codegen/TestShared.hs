@@ -9,6 +9,7 @@ import Language.Cobble.McFunction.Types
 import Language.Cobble.TestUtil
 import Language.Cobble.Types.QualifiedName
 
+{-
 exampleLC :: LCExpr
 exampleLC = L.App (L.Lambda "a" (L.Select 1 (L.Var "a"))) (L.Tuple [L.IntLit 3, L.IntLit 4])
 -- (\a -> a#1) (3, 4) 
@@ -83,7 +84,7 @@ exampleTL = T.LetF "f_6" "k" ["s_7", "a"] (T.Let "y" (T.Select 1 "a")
                 (T.Let "env_15" (T.Select 1 "f")
                 (T.App "f_14" ["e_13", "env_15", "t"])
                 )))))))))))
-
+-}
 exampleASM :: [Block]
 exampleASM = [
         Block "f_6" [
